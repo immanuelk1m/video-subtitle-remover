@@ -4,26 +4,24 @@ import lpips
 from model.vgg_arch import VGGFeatureExtractor
 
 class PerceptualLoss(nn.Module):
-    """Perceptual loss with commonly used style loss.
-
+    """일반적으로 사용되는 스타일 손실을 포함한 지각 손실.
+ 
     Args:
-        layer_weights (dict): The weight for each layer of vgg feature.
-            Here is an example: {'conv5_4': 1.}, which means the conv5_4
-            feature layer (before relu5_4) will be extracted with weight
-            1.0 in calculting losses.
-        vgg_type (str): The type of vgg network used as feature extractor.
-            Default: 'vgg19'.
-        use_input_norm (bool):  If True, normalize the input image in vgg.
-            Default: True.
-        range_norm (bool): If True, norm images with range [-1, 1] to [0, 1].
-            Default: False.
-        perceptual_weight (float): If `perceptual_weight > 0`, the perceptual
-            loss will be calculated and the loss will multiplied by the
-            weight. Default: 1.0.
-        style_weight (float): If `style_weight > 0`, the style loss will be
-            calculated and the loss will multiplied by the weight.
-            Default: 0.
-        criterion (str): Criterion used for perceptual loss. Default: 'l1'.
+        layer_weights (dict): 각 vgg 특징 레이어에 대한 가중치.
+            예시: {'conv5_4': 1.}는 conv5_4 특징 레이어(relu5_4 이전)가
+            손실 계산 시 가중치 1.0으로 추출됨을 의미합니다.
+        vgg_type (str): 특징 추출기로 사용되는 vgg 네트워크 유형.
+            기본값: 'vgg19'.
+        use_input_norm (bool): True이면 vgg에서 입력 이미지를 정규화합니다.
+            기본값: True.
+        range_norm (bool): True이면 [-1, 1] 범위의 이미지를 [0, 1]로 정규화합니다.
+            기본값: False.
+        perceptual_weight (float): `perceptual_weight > 0`이면 지각 손실이
+            계산되고 손실에 가중치가 곱해집니다. 기본값: 1.0.
+        style_weight (float): `style_weight > 0`이면 스타일 손실이
+            계산되고 손실에 가중치가 곱해집니다.
+            기본값: 0.
+        criterion (str): 지각 손실에 사용되는 기준. 기본값: 'l1'.
     """
 
     def __init__(self,
@@ -57,20 +55,20 @@ class PerceptualLoss(nn.Module):
             raise NotImplementedError(f'{criterion} criterion has not been supported.')
 
     def forward(self, x, gt):
-        """Forward function.
-
+        """순방향 함수.
+ 
         Args:
-            x (Tensor): Input tensor with shape (n, c, h, w).
-            gt (Tensor): Ground-truth tensor with shape (n, c, h, w).
-
+            x (Tensor): (n, c, h, w) 모양의 입력 텐서.
+            gt (Tensor): (n, c, h, w) 모양의 정답 텐서.
+ 
         Returns:
-            Tensor: Forward results.
+            Tensor: 순방향 결과.
         """
-        # extract vgg features
+        # vgg 특징 추출
         x_features = self.vgg(x)
         gt_features = self.vgg(gt.detach())
 
-        # calculate perceptual loss
+        # 지각 손실 계산
         if self.perceptual_weight > 0:
             percep_loss = 0
             for k in x_features.keys():
@@ -82,7 +80,7 @@ class PerceptualLoss(nn.Module):
         else:
             percep_loss = None
 
-        # calculate style loss
+        # 스타일 손실 계산
         if self.style_weight > 0:
             style_loss = 0
             for k in x_features.keys():
@@ -99,13 +97,13 @@ class PerceptualLoss(nn.Module):
         return percep_loss, style_loss
 
     def _gram_mat(self, x):
-        """Calculate Gram matrix.
-
+        """그램 행렬 계산.
+ 
         Args:
-            x (torch.Tensor): Tensor with shape of (n, c, h, w).
-
+            x (torch.Tensor): (n, c, h, w) 모양의 텐서.
+ 
         Returns:
-            torch.Tensor: Gram matrix.
+            torch.Tensor: 그램 행렬.
         """
         n, c, h, w = x.size()
         features = x.view(n, c, w * h)
@@ -125,9 +123,9 @@ class LPIPSLoss(nn.Module):
         self.range_norm = range_norm
 
         if self.use_input_norm:
-            # the mean is for image with range [0, 1]
+            # 평균은 [0, 1] 범위의 이미지에 대한 값입니다.
             self.register_buffer('mean', torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
-            # the std is for image with range [0, 1]
+            # 표준 편차는 [0, 1] 범위의 이미지에 대한 값입니다.
             self.register_buffer('std', torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
     def forward(self, pred, target):
@@ -143,7 +141,7 @@ class LPIPSLoss(nn.Module):
 
 class AdversarialLoss(nn.Module):
     r"""
-    Adversarial loss
+    적대적 손실
     https://arxiv.org/abs/1711.10337
     """
     def __init__(self,
@@ -151,7 +149,7 @@ class AdversarialLoss(nn.Module):
                  target_real_label=1.0,
                  target_fake_label=0.0):
         r"""
-        type = nsgan | lsgan | hinge
+        type = nsgan | lsgan | hinge (손실 유형)
         """
         super(AdversarialLoss, self).__init__()
         self.type = type

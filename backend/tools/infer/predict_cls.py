@@ -74,11 +74,11 @@ class TextClassifier(object):
     def __call__(self, img_list):
         img_list = copy.deepcopy(img_list)
         img_num = len(img_list)
-        # Calculate the aspect ratio of all text bars
+        # 모든 텍스트 막대의 종횡비 계산
         width_list = []
         for img in img_list:
             width_list.append(img.shape[1] / float(img.shape[0]))
-        # Sorting can speed up the cls process
+        # 정렬은 분류 프로세스 속도를 높일 수 있습니다.
         indices = np.argsort(np.array(width_list))
 
         cls_res = [['', 0.0]] * img_num

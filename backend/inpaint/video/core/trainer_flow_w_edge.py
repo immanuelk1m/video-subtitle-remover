@@ -31,7 +31,7 @@ class Trainer:
         self.num_local_frames = config['train_data_loader']['num_local_frames']
         self.num_ref_frames = config['train_data_loader']['num_ref_frames']
 
-        # setup data set and data loader
+        # 데이터 세트 및 데이터 로더 설정
         self.train_dataset = TrainDataset(config['train_data_loader'])
 
         self.train_sampler = None
@@ -53,19 +53,19 @@ class Trainer:
         self.train_loader = PrefetchDataLoader(self.train_args['num_prefetch_queue'], **dataloader_args)
         self.prefetcher = CPUPrefetcher(self.train_loader)
 
-        # set raft
+        # raft 설정
         self.fix_raft = RAFT_bi(device = self.config['device'])
         self.flow_loss = FlowLoss()
         self.edge_loss = EdgeLoss()
         self.canny = Canny(sigma=(2,2), low_threshold=0.1, high_threshold=0.2)
 
-        # setup models including generator and discriminator
+        # 생성자 및 판별자를 포함한 모델 설정
         net = importlib.import_module('model.' + config['model']['net'])
         self.netG = net.RecurrentFlowCompleteNet()
         # print(self.netG)
         self.netG = self.netG.to(self.config['device'])
 
-        # setup optimizers and schedulers
+        # 옵티마이저 및 스케줄러 설정
         self.setup_optimizers()
         self.setup_schedulers()
         self.load()
@@ -77,7 +77,7 @@ class Trainer:
                             broadcast_buffers=True,
                             find_unused_parameters=True)
 
-        # set summary writer
+        # 요약 작성기 설정
         self.dis_writer = None
         self.gen_writer = None
         self.summary = {}
@@ -86,7 +86,7 @@ class Trainer:
                 os.path.join(config['save_dir'], 'gen'))
 
     def setup_optimizers(self):
-        """Set up optimizers."""
+        """옵티마이저를 설정합니다."""
         backbone_params = []
         for name, param in self.netG.named_parameters():
             if param.requires_grad:
@@ -107,7 +107,7 @@ class Trainer:
 
 
     def setup_schedulers(self):
-        """Set up schedulers."""
+        """스케줄러를 설정합니다."""
         scheduler_opt = self.config['trainer']['scheduler']
         scheduler_type = scheduler_opt.pop('type')
 
@@ -126,15 +126,15 @@ class Trainer:
                 f'Scheduler {scheduler_type} is not implemented yet.')
 
     def update_learning_rate(self):
-        """Update learning rate."""
+        """학습률을 업데이트합니다."""
         self.scheG.step()
 
     def get_lr(self):
-        """Get current learning rate."""
+        """현재 학습률을 가져옵니다."""
         return self.optimG.param_groups[0]['lr']
 
     def add_summary(self, writer, name, val):
-        """Add tensorboard summary."""
+        """텐서보드 요약을 추가합니다."""
         if name not in self.summary:
             self.summary[name] = 0
         self.summary[name] += val
@@ -144,8 +144,8 @@ class Trainer:
             self.summary[name] = 0
 
     def load(self):
-        """Load netG."""
-        # get the latest checkpoint
+        """netG를 로드합니다."""
+        # 최신 체크포인트 가져오기
         model_path = self.config['save_dir']
         if os.path.isfile(os.path.join(model_path, 'latest.ckpt')):
             latest_epoch = open(os.path.join(model_path, 'latest.ckpt'),
@@ -181,22 +181,22 @@ class Trainer:
                       'An initialized model will be used.')
 
     def save(self, it):
-        """Save parameters every eval_epoch"""
+        """매 eval_epoch마다 파라미터를 저장합니다."""
         if self.config['global_rank'] == 0:
-            # configure path
+            # 경로 구성
             gen_path = os.path.join(self.config['save_dir'],
                                     f'gen_{it:06d}.pth')
             opt_path = os.path.join(self.config['save_dir'],
                                     f'opt_{it:06d}.pth')
             print(f'\nsaving model to {gen_path} ...')
 
-            # remove .module for saving
+            # 저장을 위해 .module 제거
             if isinstance(self.netG, torch.nn.DataParallel) or isinstance(self.netG, DDP):
                 netG = self.netG.module
             else:
                 netG = self.netG
 
-            # save checkpoints
+            # 체크포인트 저장
             torch.save(netG.state_dict(), gen_path)
             torch.save(
                 {
@@ -210,7 +210,7 @@ class Trainer:
             os.system(f"echo {it:06d} > {latest_path}")
 
     def train(self):
-        """training entry"""
+        """훈련 진입점"""
         pbar = range(int(self.train_args['iterations']))
         if self.config['global_rank'] == 0:
             pbar = tqdm(pbar,
@@ -238,8 +238,8 @@ class Trainer:
                 break
         print('\nEnd training....')
 
-    # def get_edges(self, flows): # fgvc
-    #     # (b, t, 2, H, W)
+    # def get_edges(self, flows): # fgvc (주석 처리됨)
+    #     # (b, t, 2, H, W) (차원 정보)
     #     b, t, _, h, w = flows.shape
     #     flows = flows.view(-1, 2, h, w)
     #     flows_list = flows.permute(0, 2, 3, 1).cpu().numpy()
@@ -251,7 +251,7 @@ class Trainer:
     #         else:
     #             flows_gray = flows_gray / flows_gray.max()
             
-    #         edge = canny(flows_gray, sigma=2, low_threshold=0.1, high_threshold=0.2) # fgvc
+    #         edge = canny(flows_gray, sigma=2, low_threshold=0.1, high_threshold=0.2) # fgvc (주석 처리됨)
     #         edge = torch.from_numpy(edge).view(1, 1, h, w).float()
     #         edges.append(edge)
     #     edges = torch.stack(edges, dim=0).to(self.config['device'])
@@ -259,7 +259,7 @@ class Trainer:
     #     return edges
 
     def get_edges(self, flows): 
-        # (b, t, 2, H, W)
+        # (b, t, 2, H, W) (차원 정보)
         b, t, _, h, w = flows.shape
         flows = flows.view(-1, 2, h, w)
         flows_gray = (flows[:, 0, None] ** 2 + flows[:, 1, None] ** 2) ** 0.5
@@ -273,7 +273,7 @@ class Trainer:
         return edges
         
     def _train_epoch(self, pbar):
-        """Process input and calculate loss every training epoch"""
+        """매 훈련 에포크마다 입력을 처리하고 손실을 계산합니다."""
         device = self.config['device']
         train_data = self.prefetcher.next()
         while train_data is not None:
@@ -287,31 +287,31 @@ class Trainer:
             gt_local_frames = frames[:, :l_t, ...]
             local_masks = masks[:, :l_t, ...].contiguous()
 
-            # get gt optical flow
+            # 정답 광학 흐름 가져오기
             if flows_f[0] == 'None' or flows_b[0] == 'None':
                 gt_flows_bi = self.fix_raft(gt_local_frames)
             else:
                 gt_flows_bi = (flows_f.to(device), flows_b.to(device))
 
-            # get gt edge
+            # 정답 엣지 가져오기
             gt_edges_forward = self.get_edges(gt_flows_bi[0])
             gt_edges_backward = self.get_edges(gt_flows_bi[1])
             gt_edges_bi = [gt_edges_forward, gt_edges_backward]
 
-            # complete flow
+            # 플로우 완성
             pred_flows_bi, pred_edges_bi = self.netG.module.forward_bidirect_flow(gt_flows_bi, local_masks)
 
-            # optimize net_g
+            # net_g 최적화
             self.optimG.zero_grad()
 
-            # compulte flow_loss
+            # flow_loss 계산
             flow_loss, warp_loss = self.flow_loss(pred_flows_bi, gt_flows_bi, local_masks, gt_local_frames)
             flow_loss = flow_loss * self.config['losses']['flow_weight']
             warp_loss = warp_loss * 0.01
             self.add_summary(self.gen_writer, 'loss/flow_loss', flow_loss.item())
             self.add_summary(self.gen_writer, 'loss/warp_loss', warp_loss.item())
 
-            # compute edge loss
+            # 엣지 손실 계산
             edge_loss = self.edge_loss(pred_edges_bi, gt_edges_bi, local_masks)
             edge_loss = edge_loss*1.0
             self.add_summary(self.gen_writer, 'loss/edge_loss', edge_loss.item())
@@ -321,11 +321,11 @@ class Trainer:
             self.optimG.step()
             self.update_learning_rate()
 
-            # write image to tensorboard
+            # 텐서보드에 이미지 쓰기
             # if self.iteration % 200 == 0:             
             if self.iteration % 200 == 0 and self.gen_writer is not None:        
                 t = 5     
-                # forward to cpu
+                # cpu로 순방향
                 gt_flows_forward_cpu = flow_to_image(gt_flows_bi[0][0]).cpu()
                 masked_flows_forward_cpu = (gt_flows_forward_cpu[t] * (1-local_masks[0][t].cpu())).to(gt_flows_forward_cpu)
                 pred_flows_forward_cpu = flow_to_image(pred_flows_bi[0][0]).cpu()
@@ -333,7 +333,7 @@ class Trainer:
                 flow_results = torch.cat([gt_flows_forward_cpu[t], masked_flows_forward_cpu, pred_flows_forward_cpu[t]], 1)
                 self.gen_writer.add_image('img/flow-f:gt-pred', flow_results, self.iteration)
 
-                # backward to cpu
+                # cpu로 역방향
                 gt_flows_backward_cpu = flow_to_image(gt_flows_bi[1][0]).cpu()
                 masked_flows_backward_cpu = (gt_flows_backward_cpu[t] * (1-local_masks[0][t+1].cpu())).to(gt_flows_backward_cpu)
                 pred_flows_backward_cpu = flow_to_image(pred_flows_bi[1][0]).cpu()
@@ -341,15 +341,15 @@ class Trainer:
                 flow_results = torch.cat([gt_flows_backward_cpu[t], masked_flows_backward_cpu, pred_flows_backward_cpu[t]], 1)
                 self.gen_writer.add_image('img/flow-b:gt-pred', flow_results, self.iteration)
 
-                # TODO: show edge
-                # forward
+                # TODO: 엣지 표시
+                # 순방향
                 gt_edges_forward_cpu = gt_edges_bi[0][0].cpu()
                 masked_edges_forward_cpu = (gt_edges_forward_cpu[t] * (1-local_masks[0][t].cpu())).to(gt_edges_forward_cpu)
                 pred_edges_forward_cpu = pred_edges_bi[0][0].cpu()
 
                 edge_results = torch.cat([gt_edges_forward_cpu[t], masked_edges_forward_cpu, pred_edges_forward_cpu[t]], 1)
                 self.gen_writer.add_image('img/edge-f:gt-pred', edge_results, self.iteration)
-                # backward
+                # 역방향
                 gt_edges_backward_cpu = gt_edges_bi[1][0].cpu()
                 masked_edges_backward_cpu = (gt_edges_backward_cpu[t] * (1-local_masks[0][t+1].cpu())).to(gt_edges_backward_cpu)
                 pred_edges_backward_cpu = pred_edges_bi[1][0].cpu()
@@ -357,7 +357,7 @@ class Trainer:
                 edge_results = torch.cat([gt_edges_backward_cpu[t], masked_edges_backward_cpu, pred_edges_backward_cpu[t]], 1)
                 self.gen_writer.add_image('img/edge-b:gt-pred', edge_results, self.iteration)
                 
-            # console logs
+            # 콘솔 로그
             if self.config['global_rank'] == 0:
                 pbar.update(1)
                 pbar.set_description((f"flow: {flow_loss.item():.3f}; "
@@ -370,7 +370,7 @@ class Trainer:
                                  f"flow: {flow_loss.item():.4f}; "
                                  f"warp: {warp_loss.item():.4f}")
 
-            # saving models
+            # 모델 저장
             if self.iteration % self.train_args['save_freq'] == 0:
                 self.save(int(self.iteration))
 

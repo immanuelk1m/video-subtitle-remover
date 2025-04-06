@@ -26,15 +26,15 @@ def binary_mask(mask, th=0.1):
     return mask
 
 
-# read frame-wise masks
+# 프레임별 마스크 읽기
 def read_mask(mpath, length, size, flow_mask_dilates=8, mask_dilates=5):
     masks_img = []
     masks_dilated = []
     flow_masks = []
-    # 如果传入的直接为numpy array
+    # 만약 전달된 것이 numpy 배열이면
     if isinstance(mpath, np.ndarray):
         masks_img = [Image.fromarray(mpath)]
-    # input single img path
+    # 단일 이미지 경로 입력
     else:
         if isinstance(mpath, str):
             if mpath.endswith(('jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG')):
@@ -47,12 +47,12 @@ def read_mask(mpath, length, size, flow_mask_dilates=8, mask_dilates=5):
     for mask_img in masks_img:
         mask_img = np.array(mask_img.convert('L'))
 
-        # Dilate 8 pixel so that all known pixel is trustworthy
+        # 모든 알려진 픽셀이 신뢰할 수 있도록 8픽셀 확장
         if flow_mask_dilates > 0:
             flow_mask_img = scipy.ndimage.binary_dilation(mask_img, iterations=flow_mask_dilates).astype(np.uint8)
         else:
             flow_mask_img = binary_mask(mask_img).astype(np.uint8)
-        # Close the small holes inside the foreground objects
+        # 전경 객체 내부의 작은 구멍 닫기
         # flow_mask_img = cv2.morphologyEx(flow_mask_img, cv2.MORPH_CLOSE, np.ones((21, 21),np.uint8)).astype(bool)
         # flow_mask_img = scipy.ndimage.binary_fill_holes(flow_mask_img).astype(np.uint8)
         flow_masks.append(Image.fromarray(flow_mask_img * 255))
@@ -71,12 +71,12 @@ def read_mask(mpath, length, size, flow_mask_dilates=8, mask_dilates=5):
 
 
 def extrapolation(video_ori, scale):
-    """Prepares the data for video outpainting.
+    """비디오 아웃페인팅을 위한 데이터를 준비합니다.
     """
     nFrame = len(video_ori)
     imgW, imgH = video_ori[0].size
 
-    # Defines new FOV.
+    # 새로운 FOV 정의.
     imgH_extr = int(scale[0] * imgH)
     imgW_extr = int(scale[1] * imgW)
     imgH_extr = imgH_extr - imgH_extr % 8
@@ -84,14 +84,14 @@ def extrapolation(video_ori, scale):
     H_start = int((imgH_extr - imgH) / 2)
     W_start = int((imgW_extr - imgW) / 2)
 
-    # Extrapolates the FOV for video.
+    # 비디오의 FOV 외삽.
     frames = []
     for v in video_ori:
         frame = np.zeros((imgH_extr, imgW_extr, 3), dtype=np.uint8)
         frame[H_start: H_start + imgH, W_start: W_start + imgW, :] = v
         frames.append(Image.fromarray(frame))
 
-    # Generates the mask for missing region.
+    # 누락된 영역에 대한 마스크 생성.
     masks_dilated = []
     flow_masks = []
 
@@ -136,27 +136,27 @@ class VideoInpaint:
         self.use_half = True if self.use_fp16 else False
         if self.device == torch.device('cpu'):
             self.use_half = False
-        # Length of sub-video for long video inference.
+        # 긴 비디오 추론을 위한 하위 비디오 길이.
         self.sub_video_length = sub_video_length
-        # Length of local neighboring frames.'
+        # 로컬 인접 프레임 길이.
         self.neighbor_length = 10
-        # Mask dilation for video and flow masking
+        # 비디오 및 플로우 마스킹을 위한 마스크 확장
         self.mask_dilation = 4
-        # Stride of global reference frames
+        # 전역 참조 프레임 간격
         self.ref_stride = 10
-        # Iterations for RAFT inference
+        # RAFT 추론 반복 횟수
         self.raft_iter = 20
-        # Stride of global reference frames
+        # 전역 참조 프레임 간격
         self.ref_stride = 10
-        # 设置raft模型
+        # raft 모델 설정
         self.fix_raft = self.init_raft_model()
-        # 设置fix_flow模型
+        # fix_flow 모델 설정
         self.fix_flow_complete = self.init_fix_flow_model()
-        # 设置inpaint模型
+        # inpaint 모델 설정
         self.model = self.init_inpaint_model()
 
     def init_raft_model(self):
-        # set up RAFT and flow competition model
+        # RAFT 및 플로우 경쟁 모델 설정
         return RAFT_bi(os.path.join(config.VIDEO_INPAINT_MODEL_PATH, 'raft-things.pth'), self.device)
 
     def init_fix_flow_model(self):
@@ -169,7 +169,7 @@ class VideoInpaint:
         return fix_flow_complete_model
 
     def init_inpaint_model(self):
-        # set up ProPainter model
+        # ProPainter 모델 설정
         return InpaintGenerator(model_path=os.path.join(config.VIDEO_INPAINT_MODEL_PATH, 'ProPainter.pth')).to(
             self.device).eval()
 
@@ -182,7 +182,7 @@ class VideoInpaint:
                                               flow_mask_dilates=self.mask_dilation,
                                               mask_dilates=self.mask_dilation)
         w, h = size
-        # for saving the masked frames or video
+        # 마스크된 프레임 또는 비디오 저장을 위해
         masked_frame_for_save = []
         for i in range(len(frames)):
             mask_ = np.expand_dims(np.array(masks_dilated[i]), 2).repeat(3, axis=2) / 255.
@@ -203,7 +203,7 @@ class VideoInpaint:
             self.device)
         video_length = frames.size(1)
         with torch.no_grad():
-            # ---- compute flow ----
+            # ---- 플로우 계산 ----
             if frames.size(-1) <= 640:
                 short_clip_len = 12
             elif frames.size(-1) <= 720:
@@ -213,7 +213,7 @@ class VideoInpaint:
             else:
                 short_clip_len = 2
 
-            # use fp32 for RAFT
+            # RAFT에 fp32 사용
             if frames.size(1) > short_clip_len:
                 gt_flows_f_list, gt_flows_b_list = [], []
                 for f in range(0, video_length, short_clip_len):
@@ -238,7 +238,7 @@ class VideoInpaint:
                 fix_flow_complete = self.fix_flow_complete.half()
                 self.model = self.model.half()
 
-            # ---- complete flow ----
+            # ---- 플로우 완성 ----
             flow_length = gt_flows_bi[0].size(1)
             if flow_length > self.sub_video_length:
                 pred_flows_f, pred_flows_b = [], []
@@ -268,9 +268,9 @@ class VideoInpaint:
                 pred_flows_bi = fix_flow_complete.combine_flow(gt_flows_bi, pred_flows_bi, flow_masks)
                 torch.cuda.empty_cache()
 
-            # ---- image propagation ----
+            # ---- 이미지 전파 ----
             masked_frames = frames * (1 - masks_dilated)
-            # ensure a minimum of 100 frames for image propagation
+            # 이미지 전파를 위해 최소 100 프레임 보장
             subvideo_length_img_prop = min(100, self.sub_video_length)
             if video_length > subvideo_length_img_prop:
                 updated_frames, updated_masks = [], []
@@ -312,7 +312,7 @@ class VideoInpaint:
         else:
             ref_num = -1
 
-        # ---- feature propagation + transformer ----
+        # ---- 특징 전파 + 트랜스포머 ----
         for f in range(0, video_length, neighbor_stride):
             neighbor_ids = [
                 i for i in range(max(0, f - neighbor_stride),
@@ -326,7 +326,7 @@ class VideoInpaint:
                 pred_flows_bi[0][:, neighbor_ids[:-1], :, :, :], pred_flows_bi[1][:, neighbor_ids[:-1], :, :, :])
 
             with torch.no_grad():
-                # 1.0 indicates mask
+                # 1.0은 마스크를 나타냄
                 l_t = len(neighbor_ids)
                 pred_img = self.model(selected_imgs, selected_pred_flows_bi, selected_masks, selected_update_masks, l_t)
                 pred_img = pred_img.view(-1, 3, h, w)
@@ -344,7 +344,7 @@ class VideoInpaint:
                         comp_frames[idx] = comp_frames[idx].astype(np.float32) * 0.5 + img.astype(np.float32) * 0.5
                     comp_frames[idx] = comp_frames[idx].astype(np.uint8)
             torch.cuda.empty_cache()
-        # save videos frame
+        # 비디오 프레임 저장
         comp_frames = [cv2.cvtColor(i, cv2.COLOR_RGB2BGR) for i in comp_frames]
         return comp_frames
 

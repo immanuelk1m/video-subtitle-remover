@@ -31,7 +31,7 @@ class Trainer:
         self.num_local_frames = config['train_data_loader']['num_local_frames']
         self.num_ref_frames = config['train_data_loader']['num_ref_frames']
 
-        # setup data set and data loader
+        # 데이터 세트 및 데이터 로더 설정
         self.train_dataset = TrainDataset(config['train_data_loader'])
 
         self.train_sampler = None
@@ -53,7 +53,7 @@ class Trainer:
         self.train_loader = PrefetchDataLoader(self.train_args['num_prefetch_queue'], **dataloader_args)
         self.prefetcher = CPUPrefetcher(self.train_loader)
 
-        # set loss functions
+        # 손실 함수 설정
         self.adversarial_loss = AdversarialLoss(type=self.config['losses']['GAN_LOSS'])
         self.adversarial_loss = self.adversarial_loss.to(self.config['device'])
         self.l1_loss = nn.L1Loss()
@@ -70,7 +70,7 @@ class Trainer:
         # self.flow_comp_loss = FlowCompletionLoss().to(self.config['device'])
         # self.flow_comp_loss = FlowCompletionLoss(self.config['device'])
 
-        # set raft
+        # raft 설정
         self.fix_raft = RAFT_bi(device = self.config['device'])
         self.fix_flow_complete = RecurrentFlowCompleteNet('/mnt/lustre/sczhou/VQGANs/CodeMOVI/experiments_model/recurrent_flow_completion_v5_train_flowcomp_v5/gen_760000.pth')
         for p in self.fix_flow_complete.parameters():
@@ -80,7 +80,7 @@ class Trainer:
 
         # self.flow_loss = FlowLoss()
 
-        # setup models including generator and discriminator
+        # 생성자 및 판별자를 포함한 모델 설정
         net = importlib.import_module('model.' + config['model']['net'])
         self.netG = net.InpaintGenerator()
         # print(self.netG)
@@ -97,7 +97,7 @@ class Trainer:
             self.netD = self.netD.to(self.config['device'])
         
         self.interp_mode = self.config['model']['interp_mode']
-        # setup optimizers and schedulers
+        # 옵티마이저 및 스케줄러 설정
         self.setup_optimizers()
         self.setup_schedulers()
         self.load()
@@ -115,7 +115,7 @@ class Trainer:
                                 broadcast_buffers=True,
                                 find_unused_parameters=False)
 
-        # set summary writer
+        # 요약 작성기 설정
         self.dis_writer = None
         self.gen_writer = None
         self.summary = {}
@@ -127,7 +127,7 @@ class Trainer:
                 os.path.join(config['save_dir'], 'gen'))
 
     def setup_optimizers(self):
-        """Set up optimizers."""
+        """옵티마이저를 설정합니다."""
         backbone_params = []
         for name, param in self.netG.named_parameters():
             if param.requires_grad:
@@ -154,7 +154,7 @@ class Trainer:
                        self.config['trainer']['beta2']))
 
     def setup_schedulers(self):
-        """Set up schedulers."""
+        """스케줄러를 설정합니다."""
         scheduler_opt = self.config['trainer']['scheduler']
         scheduler_type = scheduler_opt.pop('type')
 
@@ -185,17 +185,17 @@ class Trainer:
                 f'Scheduler {scheduler_type} is not implemented yet.')
 
     def update_learning_rate(self):
-        """Update learning rate."""
+        """학습률을 업데이트합니다."""
         self.scheG.step()
         if not self.config['model']['no_dis']:
             self.scheD.step()
 
     def get_lr(self):
-        """Get current learning rate."""
+        """현재 학습률을 가져옵니다."""
         return self.optimG.param_groups[0]['lr']
 
     def add_summary(self, writer, name, val):
-        """Add tensorboard summary."""
+        """텐서보드 요약을 추가합니다."""
         if name not in self.summary:
             self.summary[name] = 0
         self.summary[name] += val
@@ -205,10 +205,10 @@ class Trainer:
             self.summary[name] = 0
 
     def load(self):
-        """Load netG (and netD)."""
-        # get the latest checkpoint
+        """netG (및 netD)를 로드합니다."""
+        # 최신 체크포인트 가져오기
         model_path = self.config['save_dir']
-        # TODO: add resume name
+        # TODO: 재개 이름 추가
         if os.path.isfile(os.path.join(model_path, 'latest.ckpt')):
             latest_epoch = open(os.path.join(model_path, 'latest.ckpt'),
                                 'r').read().splitlines()[-1]
@@ -272,9 +272,9 @@ class Trainer:
                         'An initialized model will be used.')
 
     def save(self, it):
-        """Save parameters every eval_epoch"""
+        """매 eval_epoch마다 파라미터를 저장합니다."""
         if self.config['global_rank'] == 0:
-            # configure path
+            # 경로 구성
             gen_path = os.path.join(self.config['save_dir'],
                                     f'gen_{it:06d}.pth')
             dis_path = os.path.join(self.config['save_dir'],
@@ -283,7 +283,7 @@ class Trainer:
                                     f'opt_{it:06d}.pth')
             print(f'\nsaving model to {gen_path} ...')
 
-            # remove .module for saving
+            # 저장을 위해 .module 제거
             if isinstance(self.netG, torch.nn.DataParallel) or isinstance(self.netG, DDP):
                 netG = self.netG.module
                 if not self.config['model']['no_dis']:
@@ -293,7 +293,7 @@ class Trainer:
                 if not self.config['model']['no_dis']:
                     netD = self.netD
 
-            # save checkpoints
+            # 체크포인트 저장
             torch.save(netG.state_dict(), gen_path)
             if not self.config['model']['no_dis']:
                 torch.save(netD.state_dict(), dis_path)
@@ -319,7 +319,7 @@ class Trainer:
             os.system(f"echo {it:06d} > {latest_path}")
 
     def train(self):
-        """training entry"""
+        """훈련 진입점"""
         pbar = range(int(self.train_args['iterations']))
         if self.config['global_rank'] == 0:
             pbar = tqdm(pbar,
@@ -348,7 +348,7 @@ class Trainer:
         print('\nEnd training....')
 
     def _train_epoch(self, pbar):
-        """Process input and calculate loss every training epoch"""
+        """매 훈련 에포크마다 입력을 처리하고 손실을 계산합니다."""
         device = self.config['device']
         train_data = self.prefetcher.next()
         while train_data is not None:
@@ -362,44 +362,44 @@ class Trainer:
 
             masked_frames = frames * (1 - masks)
             masked_local_frames = masked_frames[:, :l_t, ...]
-            # get gt optical flow
+            # 정답 광학 흐름 가져오기
             if flows_f[0] == 'None' or flows_b[0] == 'None':
                 gt_flows_bi = self.fix_raft(gt_local_frames)
             else:
                 gt_flows_bi = (flows_f.to(device), flows_b.to(device))
 
-            # ---- complete flow ----
+            # ---- 플로우 완성 ----
             pred_flows_bi, _ = self.fix_flow_complete.forward_bidirect_flow(gt_flows_bi, local_masks)
             pred_flows_bi = self.fix_flow_complete.combine_flow(gt_flows_bi, pred_flows_bi, local_masks)
             # pred_flows_bi = gt_flows_bi
 
-            # ---- image propagation ----
+            # ---- 이미지 전파 ----
             prop_imgs, updated_local_masks = self.netG.module.img_propagation(masked_local_frames, pred_flows_bi, local_masks, interpolation=self.interp_mode)
             updated_masks = masks.clone()
             updated_masks[:, :l_t, ...] = updated_local_masks.view(b, l_t, 1, h, w)
             updated_frames = masked_frames.clone()
-            prop_local_frames = gt_local_frames * (1-local_masks) + prop_imgs.view(b, l_t, 3, h, w) * local_masks # merge
+            prop_local_frames = gt_local_frames * (1-local_masks) + prop_imgs.view(b, l_t, 3, h, w) * local_masks # 병합
             updated_frames[:, :l_t, ...] = prop_local_frames
 
-            # ---- feature propagation + Transformer ----
+            # ---- 특징 전파 + 트랜스포머 ----
             pred_imgs = self.netG(updated_frames, pred_flows_bi, masks, updated_masks, l_t)
             pred_imgs = pred_imgs.view(b, -1, c, h, w)
 
-            # get the local frames
+            # 로컬 프레임 가져오기
             pred_local_frames = pred_imgs[:, :l_t, ...]
             comp_local_frames = gt_local_frames * (1. - local_masks) +  pred_local_frames * local_masks
             comp_imgs = frames * (1. - masks) + pred_imgs * masks
 
             gen_loss = 0
             dis_loss = 0
-            # optimize net_g
+            # net_g 최적화
             if not self.config['model']['no_dis']:
                 for p in self.netD.parameters():
                     p.requires_grad = False
 
             self.optimG.zero_grad()
 
-            # generator l1 loss
+            # 생성자 l1 손실
             hole_loss = self.l1_loss(pred_imgs * masks, frames * masks)
             hole_loss = hole_loss / torch.mean(masks) * self.config['losses']['hole_weight']
             gen_loss += hole_loss
@@ -410,15 +410,15 @@ class Trainer:
             gen_loss += valid_loss
             self.add_summary(self.gen_writer, 'loss/valid_loss', valid_loss.item())
 
-            # perceptual loss
+            # 지각 손실
             if self.config['losses']['perceptual_weight'] > 0:
                 perc_loss = self.perc_loss(pred_imgs.view(-1,3,h,w), frames.view(-1,3,h,w))[0] * self.config['losses']['perceptual_weight']
                 gen_loss += perc_loss
                 self.add_summary(self.gen_writer, 'loss/perc_loss', perc_loss.item())
 
-            # gan loss
+            # gan 손실
             if not self.config['model']['no_dis']:
-                # generator adversarial loss
+                # 생성자 적대적 손실
                 gen_clip = self.netD(comp_imgs)
                 gan_loss = self.adversarial_loss(gen_clip, True, False)
                 gan_loss = gan_loss * self.config['losses']['adversarial_weight']
@@ -428,12 +428,12 @@ class Trainer:
             self.optimG.step()
 
             if not self.config['model']['no_dis']:
-                # optimize net_d
+                # net_d 최적화
                 for p in self.netD.parameters():
                     p.requires_grad = True
                 self.optimD.zero_grad()
 
-                # discriminator adversarial loss
+                # 판별자 적대적 손실
                 real_clip = self.netD(frames)
                 fake_clip = self.netD(comp_imgs.detach())
                 dis_real_loss = self.adversarial_loss(real_clip, True, True)
@@ -446,9 +446,9 @@ class Trainer:
 
             self.update_learning_rate()
 
-            # write image to tensorboard
+            # 텐서보드에 이미지 쓰기
             if self.iteration % 200 == 0:
-                # img to cpu
+                # 이미지를 cpu로
                 t = 0
                 gt_local_frames_cpu = ((gt_local_frames.view(b,-1,3,h,w) + 1)/2.0).cpu()
                 masked_local_frames = ((masked_local_frames.view(b,-1,3,h,w) + 1)/2.0).cpu()
@@ -468,7 +468,7 @@ class Trainer:
                     if self.gen_writer is not None:
                         self.gen_writer.add_image(f'img/img:inp-gt-res-{t}', img_results, self.iteration)
 
-                    # flow to cpu
+                    # 플로우를 cpu로
                     gt_flows_forward_cpu = flow_to_image(gt_flows_bi[0][0]).cpu()
                     masked_flows_forward_cpu = (gt_flows_forward_cpu[0] * (1-local_masks[0][0].cpu())).to(gt_flows_forward_cpu)
                     pred_flows_forward_cpu = flow_to_image(pred_flows_bi[0][0]).cpu()
@@ -477,7 +477,7 @@ class Trainer:
                     if self.gen_writer is not None:
                         self.gen_writer.add_image('img/flow:gt-pred', flow_results, self.iteration)
 
-            # console logs
+            # 콘솔 로그
             if self.config['global_rank'] == 0:
                 pbar.update(1)
                 if not self.config['model']['no_dis']:
@@ -499,7 +499,7 @@ class Trainer:
                                      f"hole: {hole_loss.item():.4f}; "
                                      f"valid: {valid_loss.item():.4f}")
 
-            # saving models
+            # 모델 저장
             if self.iteration % self.train_args['save_freq'] == 0:
                 self.save(int(self.iteration))
 

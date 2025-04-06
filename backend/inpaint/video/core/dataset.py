@@ -47,7 +47,7 @@ class TrainDataset(torch.utils.data.Dataset):
                 self.frame_dict[v] = frame_list
                 
 
-        self.video_names = list(self.video_dict.keys()) # update names
+        self.video_names = list(self.video_dict.keys()) # 이름 업데이트
 
         self._to_tensors = transforms.Compose([
             Stack(),
@@ -69,16 +69,16 @@ class TrainDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         video_name = self.video_names[index]
-        # create masks
+        # 마스크 생성
         all_masks = create_random_shape_with_random_motion(
             self.video_dict[video_name], imageHeight=self.h, imageWidth=self.w)
 
-        # create sample index
+        # 샘플 인덱스 생성
         selected_index = self._sample_index(self.video_dict[video_name],
                                             self.num_local_frames,
                                             self.num_ref_frames)
 
-        # read video frames
+        # 비디오 프레임 읽기
         frames = []
         masks = []
         flows_f, flows_b = [], []
@@ -106,7 +106,7 @@ class TrainDataset(torch.utils.data.Dataset):
                 flows_f.append(flow_f)
                 flows_b.append(flow_b)
 
-            if len(frames) == self.num_local_frames: # random reverse
+            if len(frames) == self.num_local_frames: # 무작위 반전
                 if random.random() < 0.5:
                     frames.reverse()
                     masks.reverse()
@@ -122,16 +122,16 @@ class TrainDataset(torch.utils.data.Dataset):
         else:
             frames = GroupRandomHorizontalFlip()(frames)
 
-        # normalizate, to tensors
+        # 정규화, 텐서로 변환
         frame_tensors = self._to_tensors(frames) * 2.0 - 1.0
         mask_tensors = self._to_tensors(masks)
         if self.load_flow:
-            flows_f = np.stack(flows_f, axis=-1) # H W 2 T-1
+            flows_f = np.stack(flows_f, axis=-1) # H W 2 T-1 (차원 정보)
             flows_b = np.stack(flows_b, axis=-1)
             flows_f = torch.from_numpy(flows_f).permute(3, 2, 0, 1).contiguous().float()
             flows_b = torch.from_numpy(flows_b).permute(3, 2, 0, 1).contiguous().float()
 
-        # img [-1,1] mask [0,1]
+        # img [-1,1] mask [0,1] (값 범위)
         if self.load_flow:
             return frame_tensors, mask_tensors, flows_f, flows_b, video_name
         else:
@@ -174,7 +174,7 @@ class TestDataset(torch.utils.data.Dataset):
         video_name = self.video_names[index]
         selected_index = list(range(self.video_dict[video_name]))
 
-        # read video frames
+        # 비디오 프레임 읽기
         frames = []
         masks = []
         flows_f, flows_b = [], []
@@ -193,7 +193,7 @@ class TestDataset(torch.utils.data.Dataset):
             mask_path = os.path.join(self.mask_root, video_name, str(idx).zfill(5) + '.png')
             mask = Image.open(mask_path).resize(self.size, Image.NEAREST).convert('L')
 
-            # origin: 0 indicates missing. now: 1 indicates missing
+            # 원본: 0은 누락을 나타냄. 현재: 1은 누락을 나타냄
             mask = np.asarray(mask)
             m = np.array(mask > 0).astype(np.uint8)
 
@@ -215,13 +215,13 @@ class TestDataset(torch.utils.data.Dataset):
                 flows_f.append(flow_f)
                 flows_b.append(flow_b)
 
-        # normalizate, to tensors
+        # 정규화, 텐서로 변환
         frames_PIL = [np.array(f).astype(np.uint8) for f in frames]
         frame_tensors = self._to_tensors(frames) * 2.0 - 1.0
         mask_tensors = self._to_tensors(masks)
         
         if self.load_flow:
-            flows_f = np.stack(flows_f, axis=-1) # H W 2 T-1
+            flows_f = np.stack(flows_f, axis=-1) # H W 2 T-1 (차원 정보)
             flows_b = np.stack(flows_b, axis=-1)
             flows_f = torch.from_numpy(flows_f).permute(3, 2, 0, 1).contiguous().float()
             flows_b = torch.from_numpy(flows_b).permute(3, 2, 0, 1).contiguous().float()

@@ -10,7 +10,7 @@ from core.utils import to_tensors
 
 
 def calculate_epe(flow1, flow2):
-    """Calculate End point errors."""
+    """종점 오차(End point errors)를 계산합니다."""
 
     epe = torch.sum((flow1 - flow2)**2, dim=1).sqrt()
     epe = epe.view(-1)
@@ -18,13 +18,13 @@ def calculate_epe(flow1, flow2):
 
 
 def calculate_psnr(img1, img2):
-    """Calculate PSNR (Peak Signal-to-Noise Ratio).
-    Ref: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
+    """PSNR(최대 신호 대 잡음비)을 계산합니다.
+    참조: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
     Args:
-        img1 (ndarray): Images with range [0, 255].
-        img2 (ndarray): Images with range [0, 255].
+        img1 (ndarray): [0, 255] 범위의 이미지.
+        img2 (ndarray): [0, 255] 범위의 이미지.
     Returns:
-        float: psnr result.
+        float: PSNR 결과.
     """
 
     assert img1.shape == img2.shape, \
@@ -37,9 +37,9 @@ def calculate_psnr(img1, img2):
 
 
 def calc_psnr_and_ssim(img1, img2):
-    """Calculate PSNR and SSIM for images.
-        img1: ndarray, range [0, 255]
-        img2: ndarray, range [0, 255]
+    """이미지에 대한 PSNR 및 SSIM을 계산합니다.
+        img1: ndarray, 범위 [0, 255]
+        img2: ndarray, 범위 [0, 255]
     """
     img1 = img1.astype(np.float64)
     img2 = img2.astype(np.float64)
@@ -55,7 +55,7 @@ def calc_psnr_and_ssim(img1, img2):
 
 
 ###########################
-# I3D models
+# I3D 모델
 ###########################
 
 
@@ -68,7 +68,7 @@ def init_i3d_model(i3d_model_path):
 
 
 def calculate_i3d_activations(video1, video2, i3d_model, device):
-    """Calculate VFID metric.
+    """VFID 메트릭을 계산합니다.
         video1: list[PIL.Image]
         video2: list[PIL.Image]
     """
@@ -84,10 +84,10 @@ def calculate_i3d_activations(video1, video2, i3d_model, device):
 
 def calculate_vfid(real_activations, fake_activations):
     """
-    Given two distribution of features, compute the FID score between them
+    두 특징 분포가 주어졌을 때, 그 사이의 FID 점수를 계산합니다.
     Params:
-        real_activations: list[ndarray]
-        fake_activations: list[ndarray]
+        real_activations: list[ndarray] (실제 활성화 값 목록)
+        fake_activations: list[ndarray] (가짜 활성화 값 목록)
     """
     m1 = np.mean(real_activations, axis=0)
     m2 = np.mean(fake_activations, axis=0)
@@ -97,22 +97,18 @@ def calculate_vfid(real_activations, fake_activations):
 
 
 def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
-    """Numpy implementation of the Frechet Distance.
-    The Frechet distance between two multivariate Gaussians X_1 ~ N(mu_1, C_1)
-    and X_2 ~ N(mu_2, C_2) is
+    """프레셰 거리(Frechet Distance)의 Numpy 구현.
+    두 다변량 가우시안 X_1 ~ N(mu_1, C_1)과 X_2 ~ N(mu_2, C_2) 사이의 프레셰 거리는 다음과 같습니다.
             d^2 = ||mu_1 - mu_2||^2 + Tr(C_1 + C_2 - 2*sqrt(C_1*C_2)).
-    Stable version by Dougal J. Sutherland.
+    Dougal J. Sutherland의 안정적인 버전.
     Params:
-    -- mu1   : Numpy array containing the activations of a layer of the
-               inception net (like returned by the function 'get_predictions')
-               for generated samples.
-    -- mu2   : The sample mean over activations, precalculated on an
-               representive data set.
-    -- sigma1: The covariance matrix over activations for generated samples.
-    -- sigma2: The covariance matrix over activations, precalculated on an
-               representive data set.
+    -- mu1   : 생성된 샘플에 대한 인셉션 넷 레이어의 활성화 값을 포함하는 Numpy 배열
+               ('get_predictions' 함수에서 반환되는 것과 유사).
+    -- mu2   : 대표적인 데이터 세트에서 미리 계산된 활성화 값에 대한 샘플 평균.
+    -- sigma1: 생성된 샘플에 대한 활성화 값의 공분산 행렬.
+    -- sigma2: 대표적인 데이터 세트에서 미리 계산된 활성화 값의 공분산 행렬.
     Returns:
-    --   : The Frechet Distance.
+    --   : 프레셰 거리.
     """
 
     mu1 = np.atleast_1d(mu1)
@@ -128,7 +124,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
     diff = mu1 - mu2
 
-    # Product might be almost singular
+    # 곱이 거의 특이 행렬일 수 있음
     covmean, _ = linalg.sqrtm(sigma1.dot(sigma2), disp=False)
     if not np.isfinite(covmean).all():
         msg = ('fid calculation produces singular product; '
@@ -137,7 +133,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
         offset = np.eye(sigma1.shape[0]) * eps
         covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
 
-    # Numerical error might give slight imaginary component
+    # 수치 오류로 인해 약간의 허수 성분이 발생할 수 있음
     if np.iscomplexobj(covmean):
         if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
             m = np.max(np.abs(covmean.imag))
@@ -146,7 +142,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
     tr_covmean = np.trace(covmean)
 
-    return (diff.dot(diff) + np.trace(sigma1) +  # NOQA
+    return (diff.dot(diff) + np.trace(sigma1) +  # NOQA (코드 분석 비활성화 주석)
             np.trace(sigma2) - 2 * tr_covmean)
 
 
@@ -156,8 +152,8 @@ def get_i3d_activations(batched_video,
                         flatten=True,
                         grad_enabled=False):
     """
-    Get features from i3d model and flatten them to 1d feature,
-    valid target endpoints are defined in InceptionI3d.VALID_ENDPOINTS
+    i3d 모델에서 특징을 가져와 1차원 특징으로 평탄화합니다.
+    유효한 대상 엔드포인트는 InceptionI3d.VALID_ENDPOINTS에 정의되어 있습니다.
     VALID_ENDPOINTS = (
         'Conv3d_1a_7x7',
         'MaxPool3d_2a_3x3',
@@ -188,8 +184,8 @@ def get_i3d_activations(batched_video,
     return feat
 
 
-# This code is from https://github.com/piergiaj/pytorch-i3d/blob/master/pytorch_i3d.py
-# I only fix flake8 errors and do some cleaning here
+# 이 코드는 https://github.com/piergiaj/pytorch-i3d/blob/master/pytorch_i3d.py 에서 가져왔습니다.
+# 여기서는 flake8 오류 수정 및 일부 정리만 수행했습니다.
 
 
 class MaxPool3dSamePadding(nn.MaxPool3d):
@@ -200,7 +196,7 @@ class MaxPool3dSamePadding(nn.MaxPool3d):
             return max(self.kernel_size[dim] - (s % self.stride[dim]), 0)
 
     def forward(self, x):
-        # compute 'same' padding
+        # 'same' 패딩 계산
         (batch, channel, t, h, w) = x.size()
         pad_t = self.compute_pad(0, t)
         pad_h = self.compute_pad(1, h)
@@ -229,7 +225,7 @@ class Unit3D(nn.Module):
                  use_batch_norm=True,
                  use_bias=False,
                  name='unit_3d'):
-        """Initializes Unit3D module."""
+        """Unit3D 모듈을 초기화합니다."""
         super(Unit3D, self).__init__()
 
         self._output_channels = output_channels
@@ -246,8 +242,8 @@ class Unit3D(nn.Module):
             out_channels=self._output_channels,
             kernel_size=self._kernel_shape,
             stride=self._stride,
-            padding=0,  # we always want padding to be 0 here. We will
-            # dynamically pad based on input size in forward function
+            padding=0,  # 여기서는 항상 패딩을 0으로 설정합니다. forward 함수에서
+            # 입력 크기에 따라 동적으로 패딩합니다.
             bias=self._use_bias)
 
         if self._use_batch_norm:
@@ -262,7 +258,7 @@ class Unit3D(nn.Module):
             return max(self._kernel_shape[dim] - (s % self._stride[dim]), 0)
 
     def forward(self, x):
-        # compute 'same' padding
+        # 'same' 패딩 계산
         (batch, channel, t, h, w) = x.size()
         pad_t = self.compute_pad(0, t)
         pad_h = self.compute_pad(1, h)
@@ -332,21 +328,20 @@ class InceptionModule(nn.Module):
 
 
 class InceptionI3d(nn.Module):
-    """Inception-v1 I3D architecture.
-    The model is introduced in:
+    """Inception-v1 I3D 아키텍처.
+    이 모델은 다음 논문에서 소개되었습니다:
         Quo Vadis, Action Recognition? A New Model and the Kinetics Dataset
         Joao Carreira, Andrew Zisserman
         https://arxiv.org/pdf/1705.07750v1.pdf.
-    See also the Inception architecture, introduced in:
+    다음 논문에서 소개된 Inception 아키텍처도 참조하십시오:
         Going deeper with convolutions
         Christian Szegedy, Wei Liu, Yangqing Jia, Pierre Sermanet, Scott Reed,
         Dragomir Anguelov, Dumitru Erhan, Vincent Vanhoucke, Andrew Rabinovich.
         http://arxiv.org/pdf/1409.4842v1.pdf.
     """
 
-    # Endpoints of the model in order. During construction, all the endpoints up
-    # to a designated `final_endpoint` are returned in a dictionary as the
-    # second return value.
+    # 모델의 엔드포인트 순서. 구성 중 지정된 `final_endpoint`까지의 모든 엔드포인트는
+    # 두 번째 반환 값으로 사전에 반환됩니다.
     VALID_ENDPOINTS = (
         'Conv3d_1a_7x7',
         'MaxPool3d_2a_3x3',
@@ -375,21 +370,18 @@ class InceptionI3d(nn.Module):
                  name='inception_i3d',
                  in_channels=3,
                  dropout_keep_prob=0.5):
-        """Initializes I3D model instance.
+        """I3D 모델 인스턴스를 초기화합니다.
         Args:
-          num_classes: The number of outputs in the logit layer (default 400, which
-              matches the Kinetics dataset).
-          spatial_squeeze: Whether to squeeze the spatial dimensions for the logits
-              before returning (default True).
-          final_endpoint: The model contains many possible endpoints.
-              `final_endpoint` specifies the last endpoint for the model to be built
-              up to. In addition to the output at `final_endpoint`, all the outputs
-              at endpoints up to `final_endpoint` will also be returned, in a
-              dictionary. `final_endpoint` must be one of
-              InceptionI3d.VALID_ENDPOINTS (default 'Logits').
-          name: A string (optional). The name of this module.
+          num_classes: 로짓 레이어의 출력 수 (기본값 400, Kinetics 데이터셋과 일치).
+          spatial_squeeze: 반환하기 전에 로짓의 공간 차원을 축소할지 여부 (기본값 True).
+          final_endpoint: 모델에는 많은 가능한 엔드포인트가 포함되어 있습니다.
+              `final_endpoint`는 모델이 빌드될 마지막 엔드포인트를 지정합니다.
+              `final_endpoint`에서의 출력 외에도 `final_endpoint`까지의 모든 엔드포인트에서의
+              출력도 사전에 반환됩니다. `final_endpoint`는
+              InceptionI3d.VALID_ENDPOINTS 중 하나여야 합니다 (기본값 'Logits').
+          name: 문자열 (선택 사항). 이 모듈의 이름.
         Raises:
-          ValueError: if `final_endpoint` is not recognized.
+          ValueError: `final_endpoint`가 인식되지 않는 경우.
         """
 
         if final_endpoint not in self.VALID_ENDPOINTS:
@@ -548,13 +540,13 @@ class InceptionI3d(nn.Module):
     def forward(self, x):
         for end_point in self.VALID_ENDPOINTS:
             if end_point in self.end_points:
-                x = self._modules[end_point](
+                x = self._modules[end_point]( # dataparallel과 함께 작동하도록 _modules 사용
                     x)  # use _modules to work with dataparallel
 
         x = self.logits(self.dropout(self.avg_pool(x)))
         if self._spatial_squeeze:
             logits = x.squeeze(3).squeeze(3)
-        # logits is batch X time X classes, which is what we want to work with
+        # logits는 배치 X 시간 X 클래스이며, 이것이 우리가 작업하려는 형식입니다.
         return logits
 
     def extract_features(self, x, target_endpoint='Logits'):

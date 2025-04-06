@@ -8,7 +8,7 @@ from torch.hub import download_url_to_file, get_dir
 from urllib.parse import urlparse
 
 
-# Source https://github.com/advimman/lama
+# 출처 https://github.com/advimman/lama
 def get_image(image):
     if isinstance(image, Image.Image):
         img = np.array(image)
@@ -18,7 +18,7 @@ def get_image(image):
         raise Exception("Input image should be either PIL Image or numpy array!")
 
     if img.ndim == 3:
-        img = np.transpose(img, (2, 0, 1))  # chw
+        img = np.transpose(img, (2, 0, 1))  # 채널, 높이, 너비 순서로 변경
     elif img.ndim == 2:
         img = img[np.newaxis, ...]
 

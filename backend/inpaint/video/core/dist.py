@@ -3,7 +3,7 @@ import torch
 
 
 def get_world_size():
-    """Find OMPI world size without calling mpi functions
+    """mpi 함수를 호출하지 않고 OMPI 월드 크기를 찾습니다.
     :rtype: int
     """
     if os.environ.get('PMI_SIZE') is not None:
@@ -15,7 +15,7 @@ def get_world_size():
 
 
 def get_global_rank():
-    """Find OMPI world rank without calling mpi functions
+    """mpi 함수를 호출하지 않고 OMPI 월드 랭크를 찾습니다.
     :rtype: int
     """
     if os.environ.get('PMI_RANK') is not None:
@@ -27,7 +27,7 @@ def get_global_rank():
 
 
 def get_local_rank():
-    """Find OMPI local rank without calling mpi functions
+    """mpi 함수를 호출하지 않고 OMPI 로컬 랭크를 찾습니다.
     :rtype: int
     """
     if os.environ.get('MPI_LOCALRANKID') is not None:

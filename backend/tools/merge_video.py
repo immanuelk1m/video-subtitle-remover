@@ -3,7 +3,7 @@ import cv2
 
 def merge_video(video_input_path0, video_input_path1, video_output_path):
     """
-    将两个视频文件安装水平方向合并
+    두 비디오 파일을 가로 방향으로 병합합니다.
     """
     input_video_cap0 = cv2.VideoCapture(video_input_path0)
     input_video_cap1 = cv2.VideoCapture(video_input_path1)
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     v1_path = '../../test/test4_no_sub(1).mp4'
     video_out_path = '../../test/demo.mp4'
     merge_video(v0_path, v1_path, video_out_path)
-    # ffmpeg 命令 mp4转gif
+    # ffmpeg 명령 mp4를 gif로 변환
     # ffmpeg -i demo3.mp4 -vf "scale=w=720:h=-1,fps=15,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 -r 15 -f gif output.gif
-    # 宽度固定400，高度成比例：
+    # 너비 400 고정, 높이 비례:
     # ffmpeg - i input.avi -vf scale=400:-2

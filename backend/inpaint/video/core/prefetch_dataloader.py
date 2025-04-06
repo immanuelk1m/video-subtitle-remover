@@ -5,14 +5,14 @@ from torch.utils.data import DataLoader
 
 
 class PrefetchGenerator(threading.Thread):
-    """A general prefetch generator.
-
-    Ref:
+    """일반적인 프리페치 제너레이터.
+ 
+    참조:
     https://stackoverflow.com/questions/7323664/python-generator-pre-fetch
-
+ 
     Args:
-        generator: Python generator.
-        num_prefetch_queue (int): Number of prefetch queue.
+        generator: 파이썬 제너레이터.
+        num_prefetch_queue (int): 프리페치 큐의 수.
     """
 
     def __init__(self, generator, num_prefetch_queue):
@@ -38,18 +38,17 @@ class PrefetchGenerator(threading.Thread):
 
 
 class PrefetchDataLoader(DataLoader):
-    """Prefetch version of dataloader.
-
-    Ref:
+    """데이터 로더의 프리페치 버전.
+ 
+    참조:
     https://github.com/IgorSusmelj/pytorch-styleguide/issues/5#
-
+ 
     TODO:
-    Need to test on single gpu and ddp (multi-gpu). There is a known issue in
-    ddp.
-
+    단일 GPU 및 ddp(다중 GPU)에서 테스트해야 합니다. ddp에는 알려진 문제가 있습니다.
+ 
     Args:
-        num_prefetch_queue (int): Number of prefetch queue.
-        kwargs (dict): Other arguments for dataloader.
+        num_prefetch_queue (int): 프리페치 큐의 수.
+        kwargs (dict): 데이터 로더의 다른 인수.
     """
 
     def __init__(self, num_prefetch_queue, **kwargs):
@@ -61,10 +60,10 @@ class PrefetchDataLoader(DataLoader):
 
 
 class CPUPrefetcher():
-    """CPU prefetcher.
-
+    """CPU 프리페처.
+ 
     Args:
-        loader: Dataloader.
+        loader: 데이터 로더.
     """
 
     def __init__(self, loader):
@@ -82,16 +81,16 @@ class CPUPrefetcher():
 
 
 class CUDAPrefetcher():
-    """CUDA prefetcher.
-
-    Ref:
+    """CUDA 프리페처.
+ 
+    참조:
     https://github.com/NVIDIA/apex/issues/304#
-
-    It may consums more GPU memory.
-
+ 
+    더 많은 GPU 메모리를 소비할 수 있습니다.
+ 
     Args:
-        loader: Dataloader.
-        opt (dict): Options.
+        loader: 데이터 로더.
+        opt (dict): 옵션.
     """
 
     def __init__(self, loader, opt):
@@ -104,11 +103,11 @@ class CUDAPrefetcher():
 
     def preload(self):
         try:
-            self.batch = next(self.loader)  # self.batch is a dict
+            self.batch = next(self.loader)  # self.batch는 사전입니다.
         except StopIteration:
             self.batch = None
             return None
-        # put tensors to gpu
+        # 텐서를 GPU로 전송
         with torch.cuda.stream(self.stream):
             for k, v in self.batch.items():
                 if torch.is_tensor(v):

@@ -22,7 +22,7 @@ class BaseNetwork(nn.Module):
 
     def init_weights(self, init_type='normal', gain=0.02):
         '''
-        initialize network's weights
+        네트워크 가중치 초기화
         init_type: normal | xavier | kaiming | orthogonal
         https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/9451e70673400885567d08a9e97ade2524c700d0/models/networks.py#L39
         '''
@@ -44,7 +44,7 @@ class BaseNetwork(nn.Module):
                     nn.init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
                 elif init_type == 'orthogonal':
                     nn.init.orthogonal_(m.weight.data, gain=gain)
-                elif init_type == 'none':  # uses pytorch's default init method
+                elif init_type == 'none':  # 파이토치의 기본 초기화 방법 사용
                     m.reset_parameters()
                 else:
                     raise NotImplementedError(
@@ -54,14 +54,14 @@ class BaseNetwork(nn.Module):
 
         self.apply(init_func)
 
-        # propagate to children
+        # 자식에게 전파
         for m in self.children():
             if hasattr(m, 'init_weights'):
                 m.init_weights(init_type, gain)
 
 
 class InpaintGenerator(BaseNetwork):
-    def __init__(self, init_weights=True):  # 1046
+    def __init__(self, init_weights=True):  # 1046 (주석)
         super(InpaintGenerator, self).__init__()
         channel = 256
         stack_num = 8
@@ -82,7 +82,7 @@ class InpaintGenerator(BaseNetwork):
             nn.LeakyReLU(0.2, inplace=True),
         )
 
-        # decoder: decode image from features
+        # 디코더: 특징에서 이미지 디코딩
         self.decoder = nn.Sequential(
             deconv(channel, 128, kernel_size=3, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
@@ -97,7 +97,7 @@ class InpaintGenerator(BaseNetwork):
             self.init_weights()
 
     def forward(self, masked_frames, masks):
-        # extracting features
+        # 특징 추출
         b, t, c, h, w = masked_frames.size()
         masks = masks.view(b*t, 1, h, w)
         enc_feat = self.encoder(masked_frames.view(b*t, c, h, w))
@@ -134,12 +134,12 @@ class deconv(nn.Module):
 
 
 # ##################################################
-# ################## Transformer ####################
+# ################## 트랜스포머 ####################
 
 
 class Attention(nn.Module):
     """
-    Compute 'Scaled Dot Product Attention
+    'Scaled Dot Product Attention' 계산
     """
 
     def forward(self, query, key, value, m):
@@ -153,7 +153,7 @@ class Attention(nn.Module):
 
 class MultiHeadedAttention(nn.Module):
     """
-    Take in model size and number of heads.
+    모델 크기와 헤드 수를 입력받습니다.
     """
 
     def __init__(self, patchsize, d_model):
@@ -187,7 +187,7 @@ class MultiHeadedAttention(nn.Module):
             mm = mm.permute(0, 1, 3, 5, 2, 4, 6).contiguous().view(
                 b,  t*out_h*out_w, height*width)
             mm = (mm.mean(-1) > 0.5).unsqueeze(1).repeat(1, t*out_h*out_w, 1)
-            # 1) embedding and reshape
+            # 1) 임베딩 및 재구성
             query = query.view(b, t, d_k, out_h, height, out_w, width)
             query = query.permute(0, 1, 3, 5, 2, 4, 6).contiguous().view(
                 b,  t*out_h*out_w, d_k*height*width)
@@ -198,7 +198,7 @@ class MultiHeadedAttention(nn.Module):
             value = value.permute(0, 1, 3, 5, 2, 4, 6).contiguous().view(
                 b,  t*out_h*out_w, d_k*height*width)
             '''
-            # 2) Apply attention on all the projected vectors in batch.
+            # 2) 배치의 모든 투영된 벡터에 어텐션 적용.
             tmp1 = []
             for q,k,v in zip(torch.chunk(query, b, dim=0), torch.chunk(key, b, dim=0), torch.chunk(value, b, dim=0)):
                 y, _ = self.attention(q.unsqueeze(0), k.unsqueeze(0), v.unsqueeze(0))
@@ -207,14 +207,14 @@ class MultiHeadedAttention(nn.Module):
             '''
             y, attn = self.attention(query, key, value, mm)
 
-            # return attention value for visualization 
-            # here we return the attention value of patchsize=18 
+            # 시각화를 위한 어텐션 값 반환
+            # 여기서는 patchsize=18의 어텐션 값을 반환합니다.
             if width == 18:
                 select_attn = attn.view(t, out_h*out_w, t, out_h, out_w)[0]
-                # mm, [b, thw, thw]
+                # mm, [b, thw, thw] (주석)
                 select_mm = mm[0].view(t*out_h*out_w, t, out_h, out_w)[0]
 
-            # 3) "Concat" using a view and apply a final linear.
+            # 3) 뷰를 사용하여 "Concat"하고 최종 선형 적용.
             y = y.view(b, t, out_h, out_w, d_k, height, width)
             y = y.permute(0, 1, 4, 2, 5, 3, 6).contiguous().view(bt, d_k, h, w)
             output.append(y)
@@ -223,11 +223,11 @@ class MultiHeadedAttention(nn.Module):
         return x, select_attn, select_mm
 
 
-# Standard 2 layerd FFN of transformer
+# 트랜스포머의 표준 2계층 FFN
 class FeedForward(nn.Module):
     def __init__(self, d_model):
         super(FeedForward, self).__init__()
-        # We set d_ff as a default to 2048
+        # d_ff를 기본값 2048로 설정
         self.conv = nn.Sequential(
             nn.Conv2d(d_model, d_model, kernel_size=3, padding=2, dilation=2),
             nn.LeakyReLU(0.2, inplace=True),
@@ -241,7 +241,7 @@ class FeedForward(nn.Module):
 
 class TransformerBlock(nn.Module):
     """
-    Transformer = MultiHead_Attention + Feed_Forward with sublayer connection
+    트랜스포머 = MultiHead_Attention + Feed_Forward (서브레이어 연결 포함)
     """
 
     def __init__(self, patchsize, hidden=128):
@@ -270,23 +270,23 @@ class Discriminator(BaseNetwork):
         self.conv = nn.Sequential(
             spectral_norm(nn.Conv3d(in_channels=in_channels, out_channels=nf*1, kernel_size=(3, 5, 5), stride=(1, 2, 2),
                                     padding=1, bias=not use_spectral_norm), use_spectral_norm),
-            # nn.InstanceNorm2d(64, track_running_stats=False),
+            # nn.InstanceNorm2d(64, track_running_stats=False), (주석 처리됨)
             nn.LeakyReLU(0.2, inplace=True),
             spectral_norm(nn.Conv3d(nf*1, nf*2, kernel_size=(3, 5, 5), stride=(1, 2, 2),
                                     padding=(1, 2, 2), bias=not use_spectral_norm), use_spectral_norm),
-            # nn.InstanceNorm2d(128, track_running_stats=False),
+            # nn.InstanceNorm2d(128, track_running_stats=False), (주석 처리됨)
             nn.LeakyReLU(0.2, inplace=True),
             spectral_norm(nn.Conv3d(nf * 2, nf * 4, kernel_size=(3, 5, 5), stride=(1, 2, 2),
                                     padding=(1, 2, 2), bias=not use_spectral_norm), use_spectral_norm),
-            # nn.InstanceNorm2d(256, track_running_stats=False),
+            # nn.InstanceNorm2d(256, track_running_stats=False), (주석 처리됨)
             nn.LeakyReLU(0.2, inplace=True),
             spectral_norm(nn.Conv3d(nf * 4, nf * 4, kernel_size=(3, 5, 5), stride=(1, 2, 2),
                                     padding=(1, 2, 2), bias=not use_spectral_norm), use_spectral_norm),
-            # nn.InstanceNorm2d(256, track_running_stats=False),
+            # nn.InstanceNorm2d(256, track_running_stats=False), (주석 처리됨)
             nn.LeakyReLU(0.2, inplace=True),
             spectral_norm(nn.Conv3d(nf * 4, nf * 4, kernel_size=(3, 5, 5), stride=(1, 2, 2),
                                     padding=(1, 2, 2), bias=not use_spectral_norm), use_spectral_norm),
-            # nn.InstanceNorm2d(256, track_running_stats=False),
+            # nn.InstanceNorm2d(256, track_running_stats=False), (주석 처리됨)
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv3d(nf * 4, nf * 4, kernel_size=(3, 5, 5),
                       stride=(1, 2, 2), padding=(1, 2, 2))
@@ -296,13 +296,13 @@ class Discriminator(BaseNetwork):
             self.init_weights()
 
     def forward(self, xs):
-        # T, C, H, W = xs.shape
+        # T, C, H, W = xs.shape (주석 처리됨)
         xs_t = torch.transpose(xs, 0, 1)
-        xs_t = xs_t.unsqueeze(0)  # B, C, T, H, W
+        xs_t = xs_t.unsqueeze(0)  # B, C, T, H, W (차원 추가)
         feat = self.conv(xs_t)
         if self.use_sigmoid:
             feat = torch.sigmoid(feat)
-        out = torch.transpose(feat, 1, 2)  # B, T, C, H, W
+        out = torch.transpose(feat, 1, 2)  # B, T, C, H, W (차원 전치)
         return out
 
 
